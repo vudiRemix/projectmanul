@@ -1,0 +1,12 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        maven { url = 'https://maven.minecraftforge.net/' }
+        maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
+    }
+}
+plugins {
+    // Скачивает JDK 17 для toolchain, если в системе установлена только другая версия Java.
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.8.0'
+}
+rootProject.name = 'ProjectSkins'

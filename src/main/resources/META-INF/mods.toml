@@ -1,0 +1,24 @@
+modLoader="javafml"
+loaderVersion="[47,)"
+license="All Rights Reserved"
+
+[[mods]]
+modId="projectskins"
+version="${version}"
+displayName="ProjectSkins"
+description='''Server-controlled player textures with the original player and TACZ animations.'''
+
+[[dependencies.projectskins]]
+modId="forge"
+mandatory=true
+versionRange="[47.3.19,48)"
+ordering="NONE"
+side="BOTH"
+
+[[dependencies.projectskins]]
+modId="minecraft"
+mandatory=true
+versionRange="[1.20.1,1.20.2)"
+ordering="NONE"
+side="BOTH"
+

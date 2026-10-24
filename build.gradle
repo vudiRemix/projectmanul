@@ -1,0 +1,82 @@
+plugins {
+    id 'java'
+    id 'net.minecraftforge.gradle' version '[6.0,6.2)'
+    id 'org.spongepowered.mixin' version '0.7.+'
+}
+
+group = 'dev.projectskins'
+version = mod_version
+base { archivesName = 'projectskins' }
+java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+
+minecraft {
+    mappings channel: 'official', version: minecraft_version
+    copyIdeResources = true
+    runs {
+        configureEach {
+            workingDirectory project.file('run')
+            property 'forge.logging.console.level', 'info'
+            mods { projectskins { source sourceSets.main } }
+        }
+        client { }
+        server { args '--nogui' }
+    }
+}
+
+repositories {
+    mavenCentral()
+    maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
+}
+
+dependencies {
+    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+    testImplementation platform('org.junit:junit-bom:5.10.2')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+mixin {
+    add sourceSets.main, 'projectskins.refmap.json'
+    config 'projectskins.mixins.json'
+}
+
+// Сервер читает список из JAR, а не перечисляет клиентский ResourceManager.
+// Каталог пересоздаётся при изменении PNG, включая удаление последнего скина.
+def skinDirectory = layout.projectDirectory.dir('src/main/resources/assets/projectskins/textures/skins')
+def generatedCatalog = layout.buildDirectory.dir('generated/skin-catalog')
+tasks.register('generateSkinCatalog') {
+    inputs.files(fileTree(skinDirectory) { include '**/*.png' })
+    outputs.dir(generatedCatalog)
+    doLast {
+        def names = []
+        fileTree(skinDirectory).matching { include '**/*.png' }.files.each { png ->
+            def relative = skinDirectory.asFile.toPath().relativize(png.toPath()).toString()
+            if (!(relative ==~ /[a-z0-9_-]{1,64}\.png/)) {
+                throw new GradleException("Invalid skin filename: ${relative}")
+            }
+            def image = javax.imageio.ImageIO.read(png)
+            if (image == null || image.width != 64 || image.height != 64 || png.length() > 1048576) {
+                throw new GradleException("Skin must be PNG 64x64, at most 1 MiB: ${relative}")
+            }
+            names.add(relative.substring(0, relative.length() - 4))
+        }
+        def output = generatedCatalog.get().file('projectskins-skins.txt').asFile
+        output.parentFile.mkdirs()
+        output.setText(names.sort().join('\n') + (names.isEmpty() ? '' : '\n'), 'UTF-8')
+    }
+}
+sourceSets.main.resources.srcDir(generatedCatalog)
+tasks.named('processResources') {
+    dependsOn 'generateSkinCatalog'
+    inputs.property 'version', project.version
+    filesMatching('META-INF/mods.toml') { expand version: project.version }
+}
+
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
+tasks.named('test') { useJUnitPlatform() }
+tasks.named('jar') {
+    manifest.attributes('Implementation-Version': project.version)
+    finalizedBy 'reobfJar'
+}
+
